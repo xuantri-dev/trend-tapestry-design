@@ -9,12 +9,23 @@ import { Heart, ShoppingCart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { mockProducts, mockCategories, addToCart } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 const Shop = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [priceRange, setPriceRange] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(12);
   const { toast } = useToast();
 
   // Filter and sort products based on current filters
@@ -50,6 +61,13 @@ const Shop = () => {
       }
     });
 
+  // Pagination calculations
+  const totalProducts = filteredProducts.length;
+  const totalPages = Math.ceil(totalProducts / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
   const handleAddToCart = (productId: string) => {
     addToCart(productId);
     const product = mockProducts.find(p => p.id === productId);
@@ -57,6 +75,30 @@ const Shop = () => {
       title: "Added to cart!",
       description: `${product?.name} has been added to your cart`
     });
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Reset pagination when filters change
+  const handleFilterChange = (filterType: string, value: string) => {
+    setCurrentPage(1);
+    switch (filterType) {
+      case 'category':
+        setSelectedCategory(value);
+        break;
+      case 'price':
+        setPriceRange(value);
+        break;
+      case 'sort':
+        setSortBy(value);
+        break;
+      case 'search':
+        setSearchTerm(value);
+        break;
+    }
   };
 
   return (
@@ -70,19 +112,19 @@ const Shop = () => {
 
         {/* Filters */}
         <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
               <Input
                 placeholder="Search products..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
               />
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <Select value={selectedCategory} onValueChange={(value) => handleFilterChange('category', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
@@ -99,7 +141,7 @@ const Shop = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
-              <Select value={priceRange} onValueChange={setPriceRange}>
+              <Select value={priceRange} onValueChange={(value) => handleFilterChange('price', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Prices" />
                 </SelectTrigger>
@@ -114,7 +156,7 @@ const Shop = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={sortBy} onValueChange={(value) => handleFilterChange('sort', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -126,12 +168,34 @@ const Shop = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Items per page</label>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(parseInt(value));
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="12">12 items</SelectItem>
+                  <SelectItem value="24">24 items</SelectItem>
+                  <SelectItem value="48">48 items</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
+        {/* Results info */}
+        <div className="mb-4 text-gray-600">
+          Showing {startIndex + 1}-{Math.min(endIndex, totalProducts)} of {totalProducts} products
+        </div>
+
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+          {currentProducts.map((product) => (
             <Card key={product.id} className="group hover:shadow-lg transition-all duration-300">
               <CardContent className="p-0">
                 <div className="relative">
@@ -188,6 +252,57 @@ const Shop = () => {
             </Card>
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination className="mb-8">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                  className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                if (
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => handlePageChange(page)}
+                        isActive={page === currentPage}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                } else if (
+                  page === currentPage - 2 ||
+                  page === currentPage + 2
+                ) {
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  );
+                }
+                return null;
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                  className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
 
         {filteredProducts.length === 0 && (
           <div className="text-center py-12">

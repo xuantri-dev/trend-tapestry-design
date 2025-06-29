@@ -20,6 +20,11 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Wishlist from "./pages/Wishlist";
 import Sale from "./pages/Sale";
+import ProductManagement from "./pages/admin/ProductManagement";
+import CategoryManagement from "./pages/admin/CategoryManagement";
+import UserManagement from "./pages/admin/UserManagement";
+import OrderManagement from "./pages/admin/OrderManagement";
+import ReviewManagement from "./pages/admin/ReviewManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +52,11 @@ const App = () => (
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/sale" element={<Sale />} />
+          <Route path="/admin/products" element={<ProductManagement />} />
+          <Route path="/admin/categories" element={<CategoryManagement />} />
+          <Route path="/admin/users" element={<UserManagement />} />
+          <Route path="/admin/orders" element={<OrderManagement />} />
+          <Route path="/admin/reviews" element={<ReviewManagement />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
