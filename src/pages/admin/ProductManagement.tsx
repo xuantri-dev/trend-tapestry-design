@@ -9,11 +9,37 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Search, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { mockProducts, mockCategories } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
+import ProductModal from '@/components/admin/ProductModal';
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  original_price?: number;
+  category_id: string;
+  sizes: string[];
+  colors: string[];
+  stock_quantity: number;
+  images: string[];
+  is_active: boolean;
+  is_featured: boolean;
+  sku: string;
+}
 
 const ProductManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [products, setProducts] = useState(mockProducts);
+  const [products, setProducts] = useState<Product[]>(
+    mockProducts.map(product => ({
+      ...product,
+      sizes: product.sizes || [],
+      colors: product.colors || [],
+      is_featured: product.is_featured || false,
+    }))
+  );
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
 
   const filteredProducts = products.filter(product => {
@@ -40,6 +66,45 @@ const ProductManagement = () => {
       title: "Product Deleted",
       description: "Product has been removed successfully"
     });
+  };
+
+  const handleCreateProduct = () => {
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveProduct = (productData: Partial<Product>) => {
+    if (editingProduct) {
+      // Update existing product
+      setProducts(prev => prev.map(product => 
+        product.id === editingProduct.id 
+          ? { ...product, ...productData }
+          : product
+      ));
+    } else {
+      // Create new product
+      const newProduct: Product = {
+        id: productData.id || `product-${Date.now()}`,
+        name: productData.name || '',
+        description: productData.description || '',
+        price: productData.price || 0,
+        original_price: productData.original_price,
+        category_id: productData.category_id || '',
+        sizes: productData.sizes || [],
+        colors: productData.colors || [],
+        stock_quantity: productData.stock_quantity || 0,
+        images: productData.images || [],
+        is_active: productData.is_active ?? true,
+        is_featured: productData.is_featured ?? false,
+        sku: `SKU-${Date.now()}`,
+      };
+      setProducts(prev => [...prev, newProduct]);
+    }
   };
 
   const getCategoryName = (categoryId: string) => {
@@ -85,7 +150,7 @@ const ProductManagement = () => {
                 </Select>
               </div>
               
-              <Button>
+              <Button onClick={handleCreateProduct}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Product
               </Button>
@@ -149,7 +214,11 @@ const ProductManagement = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditProduct(product)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
@@ -174,6 +243,13 @@ const ProductManagement = () => {
             </Table>
           </CardContent>
         </Card>
+
+        <ProductModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          product={editingProduct}
+          onSave={handleSaveProduct}
+        />
       </div>
     </div>
   );

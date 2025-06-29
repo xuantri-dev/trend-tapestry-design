@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { mockCategories } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
+import CategoryModal from '@/components/admin/CategoryModal';
 
 interface Category {
   id: string;
@@ -23,6 +24,8 @@ const CategoryManagement = () => {
     mockCategories.map(cat => ({ ...cat, is_active: true }))
   );
   const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const { toast } = useToast();
 
   const filteredCategories = categories.filter(category =>
@@ -49,6 +52,38 @@ const CategoryManagement = () => {
     });
   };
 
+  const handleCreateCategory = () => {
+    setEditingCategory(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditCategory = (category: Category) => {
+    setEditingCategory(category);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveCategory = (categoryData: Partial<Category>) => {
+    if (editingCategory) {
+      // Update existing category
+      setCategories(prev => prev.map(category => 
+        category.id === editingCategory.id 
+          ? { ...category, ...categoryData }
+          : category
+      ));
+    } else {
+      // Create new category
+      const newCategory: Category = {
+        id: categoryData.id || `category-${Date.now()}`,
+        name: categoryData.name || '',
+        slug: categoryData.slug || '',
+        description: categoryData.description,
+        image_url: categoryData.image_url,
+        is_active: categoryData.is_active ?? true,
+      };
+      setCategories(prev => [...prev, newCategory]);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
@@ -68,7 +103,7 @@ const CategoryManagement = () => {
                 className="max-w-sm"
               />
               
-              <Button>
+              <Button onClick={handleCreateCategory}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Category
               </Button>
@@ -98,9 +133,17 @@ const CategoryManagement = () => {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                          <span className="text-sm font-medium">
-                            {category.name.charAt(0).toUpperCase()}
-                          </span>
+                          {category.image_url ? (
+                            <img 
+                              src={category.image_url} 
+                              alt={category.name}
+                              className="w-10 h-10 object-cover rounded"
+                            />
+                          ) : (
+                            <span className="text-sm font-medium">
+                              {category.name.charAt(0).toUpperCase()}
+                            </span>
+                          )}
                         </div>
                         <span className="font-medium">{category.name}</span>
                       </div>
@@ -122,7 +165,11 @@ const CategoryManagement = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditCategory(category)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
@@ -147,6 +194,13 @@ const CategoryManagement = () => {
             </Table>
           </CardContent>
         </Card>
+
+        <CategoryModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          category={editingCategory}
+          onSave={handleSaveCategory}
+        />
       </div>
     </div>
   );
