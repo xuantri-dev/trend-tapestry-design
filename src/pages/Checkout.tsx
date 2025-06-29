@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,20 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingBag, CreditCard, Truck } from 'lucide-react';
-import type { User } from '@supabase/supabase-js';
-
-interface CartItem {
-  id: string;
-  quantity: number;
-  size: string | null;
-  color: string | null;
-  products: {
-    id: string;
-    name: string;
-    price: number;
-    images: string[];
-  };
-}
+import { getCartItemsWithProducts, clearCart, mockUser } from '@/data/mockData';
 
 interface Address {
   first_name: string;
@@ -37,16 +23,18 @@ interface Address {
 }
 
 const Checkout = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Simulate user being logged in
+  const user = mockUser;
+
   const [shippingAddress, setShippingAddress] = useState<Address>({
-    first_name: '',
-    last_name: '',
+    first_name: user?.first_name || '',
+    last_name: user?.last_name || '',
     company: '',
     address_line_1: '',
     address_line_2: '',
@@ -57,8 +45,8 @@ const Checkout = () => {
   });
 
   const [billingAddress, setBillingAddress] = useState<Address>({
-    first_name: '',
-    last_name: '',
+    first_name: user?.first_name || '',
+    last_name: user?.last_name || '',
     company: '',
     address_line_1: '',
     address_line_2: '',
@@ -71,60 +59,18 @@ const Checkout = () => {
   const [useSameAddress, setUseSameAddress] = useState(true);
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
-      setUser(user);
-      
-      // Load cart items
-      const { data: items } = await supabase
-        .from('cart_items')
-        .select(`
-          id,
-          quantity,
-          size,
-          color,
-          products (
-            id,
-            name,
-            price,
-            images
-          )
-        `)
-        .eq('user_id', user.id);
-
-      if (items) {
-        setCartItems(items as CartItem[]);
-      }
-
-      // Load user profile for pre-filling
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profile) {
-        setShippingAddress(prev => ({
-          ...prev,
-          first_name: profile.first_name || '',
-          last_name: profile.last_name || ''
-        }));
-        setBillingAddress(prev => ({
-          ...prev,
-          first_name: profile.first_name || '',
-          last_name: profile.last_name || ''
-        }));
-      }
-
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    
+    // Load cart items
+    setTimeout(() => {
+      const items = getCartItemsWithProducts();
+      setCartItems(items);
       setLoading(false);
-    };
-
-    getUser();
-  }, [navigate]);
+    }, 500);
+  }, [navigate, user]);
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.products.price * item.quantity), 0);
   const shipping = subtotal > 100 ? 0 : 15;
@@ -135,85 +81,22 @@ const Checkout = () => {
     if (!user) return;
 
     setProcessing(true);
-    try {
-      // Create shipping address
-      const { data: shippingAddr } = await supabase
-        .from('addresses')
-        .insert({
-          ...shippingAddress,
-          user_id: user.id,
-          type: 'shipping'
-        })
-        .select()
-        .single();
-
-      // Create billing address
-      const billingAddrData = useSameAddress ? shippingAddress : billingAddress;
-      const { data: billingAddr } = await supabase
-        .from('addresses')
-        .insert({
-          ...billingAddrData,
-          user_id: user.id,
-          type: 'billing'
-        })
-        .select()
-        .single();
-
-      // Generate order number
-      const { data: orderNumberResult } = await supabase.rpc('generate_order_number');
+    
+    // Simulate order processing
+    setTimeout(() => {
+      const orderNumber = `ORD-${Date.now()}`;
       
-      // Create order
-      const { data: order } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          order_number: orderNumberResult,
-          subtotal,
-          shipping_cost: shipping,
-          tax_amount: tax,
-          total_amount: total,
-          shipping_address_id: shippingAddr?.id,
-          billing_address_id: billingAddr?.id,
-          status: 'confirmed'
-        })
-        .select()
-        .single();
-
-      // Create order items
-      const orderItems = cartItems.map(item => ({
-        order_id: order?.id,
-        product_id: item.products.id,
-        quantity: item.quantity,
-        unit_price: item.products.price,
-        total_price: item.products.price * item.quantity,
-        size: item.size,
-        color: item.color
-      }));
-
-      await supabase.from('order_items').insert(orderItems);
-
       // Clear cart
-      await supabase
-        .from('cart_items')
-        .delete()
-        .eq('user_id', user.id);
-
+      clearCart();
+      
       toast({
         title: "Order placed successfully!",
-        description: `Order ${orderNumberResult} has been confirmed.`
+        description: `Order ${orderNumber} has been confirmed.`
       });
 
       navigate('/profile?tab=orders');
-    } catch (error) {
-      console.error('Error placing order:', error);
-      toast({
-        title: "Error",
-        description: "Failed to place order. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
       setProcessing(false);
-    }
+    }, 2000);
   };
 
   if (loading) {
@@ -370,7 +253,6 @@ const Checkout = () => {
 
                 {!useSameAddress && (
                   <div className="space-y-4">
-                    {/* Same form fields as shipping but for billing */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="billing_first_name">First Name</Label>
@@ -391,7 +273,7 @@ const Checkout = () => {
                         />
                       </div>
                     </div>
-                    {/* Add other billing address fields similar to shipping */}
+                    {/* Additional billing fields would go here */}
                   </div>
                 )}
               </CardContent>

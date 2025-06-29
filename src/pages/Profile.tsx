@@ -1,7 +1,6 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,40 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { User, ShoppingBag } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
-
-interface Profile {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  phone: string | null;
-}
-
-interface Order {
-  id: string;
-  order_number: string;
-  status: string;
-  total_amount: number;
-  created_at: string;
-  order_items: {
-    id: string;
-    quantity: number;
-    unit_price: number;
-    size: string | null;
-    color: string | null;
-    products: {
-      name: string;
-      images: string[];
-    };
-  }[];
-}
+import { mockUser, mockOrders } from '@/data/mockData';
 
 const Profile = () => {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(mockUser);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -51,91 +20,28 @@ const Profile = () => {
 
   const activeTab = searchParams.get('tab') || 'profile';
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
-      setUser(user);
+  // Simulate user authentication check
+  const user = mockUser;
+  if (!user) {
+    navigate('/auth');
+    return null;
+  }
 
-      // Load profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileData) {
-        setProfile(profileData);
-      }
-
-      // Load orders
-      const { data: ordersData } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          status,
-          total_amount,
-          created_at,
-          order_items (
-            id,
-            quantity,
-            unit_price,
-            size,
-            color,
-            products (
-              name,
-              images
-            )
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (ordersData) {
-        setOrders(ordersData as Order[]);
-      }
-
-      setLoading(false);
-    };
-
-    getUser();
-  }, [navigate]);
+  const orders = mockOrders;
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !profile) return;
-
+    
     setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          phone: profile.phone
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
+    
+    // Simulate profile update
+    setTimeout(() => {
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully."
       });
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
       setSaving(false);
-    }
+    }, 1000);
   };
 
   const getStatusColor = (status: string) => {
@@ -154,10 +60,6 @@ const Profile = () => {
         return 'bg-yellow-100 text-yellow-800';
     }
   };
-
-  if (loading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>;
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -194,7 +96,7 @@ const Profile = () => {
                     <Input
                       id="email"
                       type="email"
-                      value={profile?.email || ''}
+                      value={profile.email}
                       disabled
                       className="bg-gray-50"
                     />
@@ -206,16 +108,16 @@ const Profile = () => {
                       <Label htmlFor="first_name">First Name</Label>
                       <Input
                         id="first_name"
-                        value={profile?.first_name || ''}
-                        onChange={(e) => setProfile(prev => prev ? { ...prev, first_name: e.target.value } : null)}
+                        value={profile.first_name}
+                        onChange={(e) => setProfile(prev => ({ ...prev, first_name: e.target.value }))}
                       />
                     </div>
                     <div>
                       <Label htmlFor="last_name">Last Name</Label>
                       <Input
                         id="last_name"
-                        value={profile?.last_name || ''}
-                        onChange={(e) => setProfile(prev => prev ? { ...prev, last_name: e.target.value } : null)}
+                        value={profile.last_name}
+                        onChange={(e) => setProfile(prev => ({ ...prev, last_name: e.target.value }))}
                       />
                     </div>
                   </div>
@@ -225,8 +127,8 @@ const Profile = () => {
                     <Input
                       id="phone"
                       type="tel"
-                      value={profile?.phone || ''}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
+                      value={profile.phone}
+                      onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
                     />
                   </div>
 

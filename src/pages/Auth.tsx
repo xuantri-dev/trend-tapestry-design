@@ -1,6 +1,5 @@
 
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,43 +19,23 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
-    try {
+    // Simulate authentication process
+    setTimeout(() => {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        if (error) throw error;
-        
         toast({
           title: "Welcome back!",
           description: "You have successfully logged in."
         });
-        navigate('/');
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`
-          }
-        });
-        if (error) throw error;
-        
         toast({
           title: "Account created!",
-          description: "Please check your email to confirm your account."
+          description: "Your account has been created successfully."
         });
       }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
+      
       setLoading(false);
-    }
+      navigate('/'); // Redirect to home page
+    }, 1500);
   };
 
   return (

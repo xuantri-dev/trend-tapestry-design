@@ -1,130 +1,49 @@
 
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingBag, Plus, Minus, X } from 'lucide-react';
-import type { User } from '@supabase/supabase-js';
-
-interface CartItem {
-  id: string;
-  quantity: number;
-  size: string | null;
-  color: string | null;
-  products: {
-    id: string;
-    name: string;
-    price: number;
-    images: string[];
-    stock_quantity: number;
-  };
-}
+import { getCartItemsWithProducts, updateCartQuantity, removeFromCart as removeCartItem, mockUser } from '@/data/mockData';
 
 const Cart = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      
-      if (user) {
-        loadCartItems(user.id);
-      } else {
-        setLoading(false);
-      }
-    };
+  // Simulate user being logged in
+  const user = mockUser;
 
-    getUser();
+  useEffect(() => {
+    // Simulate loading cart items
+    setTimeout(() => {
+      const items = getCartItemsWithProducts();
+      setCartItems(items);
+      setLoading(false);
+    }, 500);
   }, []);
 
-  const loadCartItems = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('cart_items')
-        .select(`
-          id,
-          quantity,
-          size,
-          color,
-          products (
-            id,
-            name,
-            price,
-            images,
-            stock_quantity
-          )
-        `)
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      setCartItems(data as CartItem[]);
-    } catch (error) {
-      console.error('Error loading cart:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load cart items",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateQuantity = async (itemId: string, newQuantity: number) => {
+  const updateQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
 
-    try {
-      const { error } = await supabase
-        .from('cart_items')
-        .update({ quantity: newQuantity })
-        .eq('id', itemId);
-
-      if (error) throw error;
-
-      setCartItems(prev => 
-        prev.map(item => 
-          item.id === itemId ? { ...item, quantity: newQuantity } : item
-        )
-      );
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update quantity",
-        variant: "destructive"
-      });
-    }
+    updateCartQuantity(itemId, newQuantity);
+    
+    setCartItems(prev => 
+      prev.map(item => 
+        item.id === itemId ? { ...item, quantity: newQuantity } : item
+      )
+    );
   };
 
-  const removeFromCart = async (itemId: string) => {
-    try {
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('id', itemId);
-
-      if (error) throw error;
-
-      setCartItems(prev => prev.filter(item => item.id !== itemId));
-      
-      toast({
-        title: "Item removed",
-        description: "Item has been removed from your cart"
-      });
-    } catch (error) {
-      console.error('Error removing item:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove item",
-        variant: "destructive"
-      });
-    }
+  const removeFromCart = (itemId: string) => {
+    removeCartItem(itemId);
+    setCartItems(prev => prev.filter(item => item.id !== itemId));
+    
+    toast({
+      title: "Item removed",
+      description: "Item has been removed from your cart"
+    });
   };
 
   if (loading) {

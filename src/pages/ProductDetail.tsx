@@ -1,13 +1,12 @@
 
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Heart, ShoppingCart, ArrowLeft, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { mockProducts, addToCart } from '@/data/mockData';
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -18,106 +17,34 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  const { data: product, isLoading } = useQuery({
-    queryKey: ['product', slug],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          *,
-          categories (
-            name
-          )
-        `)
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    }
-  });
+  const product = mockProducts.find(p => p.slug === slug);
 
-  const addToCart = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: "Please log in",
-          description: "You need to be logged in to add items to cart",
-          variant: "destructive"
-        });
-        return;
-      }
+  const handleAddToCart = () => {
+    if (!product) return;
 
-      if (product?.sizes && product.sizes.length > 0 && !selectedSize) {
-        toast({
-          title: "Please select a size",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (product?.colors && product.colors.length > 0 && !selectedColor) {
-        toast({
-          title: "Please select a color",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('cart_items')
-        .upsert({
-          user_id: user.id,
-          product_id: product!.id,
-          quantity,
-          size: selectedSize || null,
-          color: selectedColor || null
-        }, {
-          onConflict: 'user_id,product_id,size,color'
-        });
-
-      if (error) throw error;
-
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
       toast({
-        title: "Added to cart!",
-        description: `${product?.name} has been added to your cart`
-      });
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add item to cart",
+        title: "Please select a size",
         variant: "destructive"
       });
+      return;
     }
-  };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 animate-pulse">
-            <div className="space-y-4">
-              <div className="aspect-square bg-gray-200 rounded-lg"></div>
-              <div className="grid grid-cols-4 gap-2">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="aspect-square bg-gray-200 rounded"></div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-6">
-              <div className="h-8 bg-gray-200 rounded"></div>
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-12 bg-gray-200 rounded"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    if (product.colors && product.colors.length > 0 && !selectedColor) {
+      toast({
+        title: "Please select a color",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    addToCart(product.id, quantity, selectedSize || undefined, selectedColor || undefined);
+
+    toast({
+      title: "Added to cart!",
+      description: `${product.name} has been added to your cart`
+    });
+  };
 
   if (!product) {
     return (
@@ -278,7 +205,7 @@ const ProductDetail = () => {
 
             {/* Add to Cart */}
             <div className="space-y-3">
-              <Button onClick={addToCart} className="w-full" size="lg">
+              <Button onClick={handleAddToCart} className="w-full" size="lg">
                 <ShoppingCart className="h-5 w-5 mr-2" />
                 Add to Cart - ${(product.price * quantity).toFixed(2)}
               </Button>
