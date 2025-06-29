@@ -1,4 +1,3 @@
-
 // Mock data for the e-commerce application
 
 export interface MockUser {
@@ -49,6 +48,7 @@ export interface MockCartItem {
 
 export interface MockOrder {
   id: string;
+  user_id: string;
   order_number: string;
   status: string;
   total_amount: number;
@@ -196,6 +196,7 @@ export let mockCartItems: MockCartItem[] = [
 export const mockOrders: MockOrder[] = [
   {
     id: 'order-1',
+    user_id: 'user-1',
     order_number: 'ORD-20231201-0001',
     status: 'delivered',
     total_amount: 159.97,
@@ -225,6 +226,7 @@ export const mockOrders: MockOrder[] = [
   },
   {
     id: 'order-2',
+    user_id: 'user-1',
     order_number: 'ORD-20231115-0002',
     status: 'shipped',
     total_amount: 299.99,
