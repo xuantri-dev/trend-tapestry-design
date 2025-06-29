@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { Menu, X, ShoppingBag, Search, User, LogOut } from 'lucide-react';
+import { Menu, X, ShoppingBag, Search, User, LogOut, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { mockUser, getCartItemsWithProducts } from '@/data/mockData';
@@ -33,6 +32,7 @@ const Header = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
             <Link to="/shop" className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium">Shop</Link>
+            <Link to="/sale" className="text-red-600 hover:text-red-700 transition-colors duration-200 font-medium">Sale</Link>
             <Link to="/search" className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium">Search</Link>
             <Link to="/about" className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium">About</Link>
             <Link to="/contact" className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium">Contact</Link>
@@ -48,6 +48,11 @@ const Header = () => {
             
             {user ? (
               <div className="flex items-center space-x-2">
+                <Link to="/wishlist">
+                  <Button variant="ghost" size="icon" className="hover:bg-gray-100">
+                    <Heart className="h-5 w-5" />
+                  </Button>
+                </Link>
                 <Link to="/cart">
                   <Button variant="ghost" size="icon" className="hover:bg-gray-100 relative">
                     <ShoppingBag className="h-5 w-5" />
@@ -98,12 +103,18 @@ const Header = () => {
           <div className="md:hidden bg-white border-t border-gray-100 py-4 animate-fade-in">
             <nav className="flex flex-col space-y-4">
               <Link to="/shop" className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium px-2">Shop</Link>
+              <Link to="/sale" className="text-red-600 hover:text-red-700 transition-colors duration-200 font-medium px-2">Sale</Link>
               <Link to="/search" className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium px-2">Search</Link>
               <Link to="/about" className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium px-2">About</Link>
               <Link to="/contact" className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium px-2">Contact</Link>
+              <Link to="/faq" className="text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium px-2">FAQ</Link>
               <div className="border-t pt-4 px-2">
                 {user ? (
                   <div className="space-y-2">
+                    <Link to="/wishlist" className="flex items-center text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium">
+                      <Heart className="h-4 w-4 mr-2" />
+                      Wishlist
+                    </Link>
                     <Link to="/cart" className="flex items-center text-gray-700 hover:text-gray-900 transition-colors duration-200 font-medium">
                       <ShoppingBag className="h-4 w-4 mr-2" />
                       Cart {cartItemsCount > 0 && `(${cartItemsCount})`}

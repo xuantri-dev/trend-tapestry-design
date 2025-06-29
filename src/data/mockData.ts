@@ -192,6 +192,29 @@ export let mockCartItems: MockCartItem[] = [
   }
 ];
 
+// Mock wishlist items
+export interface MockWishlistItem {
+  id: string;
+  product_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+export let mockWishlistItems: MockWishlistItem[] = [
+  {
+    id: 'wish-1',
+    product_id: 'prod-2',
+    user_id: 'user-1',
+    created_at: '2023-12-01T10:00:00Z'
+  },
+  {
+    id: 'wish-2',
+    product_id: 'prod-4',
+    user_id: 'user-1',
+    created_at: '2023-11-28T14:30:00Z'
+  }
+];
+
 // Mock orders
 export const mockOrders: MockOrder[] = [
   {
@@ -296,4 +319,46 @@ export const getCartItemsWithProducts = () => {
       } : null
     };
   }).filter(item => item.products !== null);
+};
+
+// Helper functions for wishlist operations
+export const addToWishlist = (productId: string) => {
+  const existingItem = mockWishlistItems.find(
+    item => item.product_id === productId && item.user_id === mockUser.id
+  );
+
+  if (!existingItem) {
+    mockWishlistItems.push({
+      id: `wish-${Date.now()}`,
+      product_id: productId,
+      user_id: mockUser.id,
+      created_at: new Date().toISOString()
+    });
+  }
+};
+
+export const removeFromWishlist = (wishlistItemId: string) => {
+  mockWishlistItems = mockWishlistItems.filter(item => item.id !== wishlistItemId);
+};
+
+export const getWishlistItemsWithProducts = () => {
+  return mockWishlistItems.map(wishlistItem => {
+    const product = mockProducts.find(p => p.id === wishlistItem.product_id);
+    return {
+      ...wishlistItem,
+      products: product ? {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        original_price: product.original_price,
+        images: product.images,
+        slug: product.slug
+      } : null
+    };
+  }).filter(item => item.products !== null);
+};
+
+// Get products on sale
+export const getSaleProducts = () => {
+  return mockProducts.filter(product => product.original_price && product.original_price > product.price);
 };
