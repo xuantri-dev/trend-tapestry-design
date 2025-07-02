@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,67 +5,66 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Edit, Trash2, Plus, Search } from 'lucide-react';
 import { mockProducts, mockCategories } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
 import ProductModal from '@/components/admin/ProductModal';
 
+// Updated Product interface to match MockProduct
 interface Product {
   id: string;
   name: string;
-  description: string;
+  slug: string;
   price: number;
   original_price?: number;
-  category_id: string;
-  sizes: string[];
-  colors: string[];
-  stock_quantity: number;
+  description: string;
   images: string[];
+  category_id: string;
+  brand?: string;
+  sku?: string; // Made optional to match MockProduct
+  stock_quantity: number;
+  sizes?: string[];
+  colors?: string[];
   is_active: boolean;
   is_featured: boolean;
-  sku: string;
+  categories?: {
+    name: string;
+  };
 }
 
 const ProductManagement = () => {
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>(mockProducts);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [products, setProducts] = useState<Product[]>(
-    mockProducts.map(product => ({
-      ...product,
-      sizes: product.sizes || [],
-      colors: product.colors || [],
-      is_featured: product.is_featured || false,
-    }))
-  );
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const itemsPerPage = 10;
   const { toast } = useToast();
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category_id === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const handleToggleVisibility = (productId: string) => {
-    setProducts(prev => prev.map(product => 
-      product.id === productId 
-        ? { ...product, is_active: !product.is_active }
-        : product
-    ));
-    toast({
-      title: "Product Updated",
-      description: "Product visibility has been changed"
+  // Filter products based on search and filters
+  React.useEffect(() => {
+    let filtered = products.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = categoryFilter === 'all' || product.category_id === categoryFilter;
+      const matchesStatus = statusFilter === 'all' || 
+                           (statusFilter === 'active' && product.is_active) ||
+                           (statusFilter === 'inactive' && !product.is_active);
+      
+      return matchesSearch && matchesCategory && matchesStatus;
     });
-  };
+    
+    setFilteredProducts(filtered);
+    setCurrentPage(1);
+  }, [products, searchTerm, categoryFilter, statusFilter]);
 
-  const handleDeleteProduct = (productId: string) => {
-    setProducts(prev => prev.filter(product => product.id !== productId));
-    toast({
-      title: "Product Deleted",
-      description: "Product has been removed successfully"
-    });
-  };
+  // Pagination
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
 
   const handleCreateProduct = () => {
     setEditingProduct(null);
@@ -78,177 +76,219 @@ const ProductManagement = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveProduct = (productData: Partial<Product>) => {
+  const handleDeleteProduct = (productId: string) => {
+    setProducts(products.filter(p => p.id !== productId));
+    toast({
+      title: "Product deleted",
+      description: "The product has been successfully deleted."
+    });
+  };
+
+  const handleSaveProduct = (productData: any) => {
     if (editingProduct) {
       // Update existing product
-      setProducts(prev => prev.map(product => 
-        product.id === editingProduct.id 
-          ? { ...product, ...productData }
-          : product
+      setProducts(products.map(p => 
+        p.id === editingProduct.id 
+          ? { ...p, ...productData }
+          : p
       ));
+      toast({
+        title: "Product updated",
+        description: "The product has been successfully updated."
+      });
     } else {
       // Create new product
       const newProduct: Product = {
-        id: productData.id || `product-${Date.now()}`,
-        name: productData.name || '',
-        description: productData.description || '',
-        price: productData.price || 0,
-        original_price: productData.original_price,
-        category_id: productData.category_id || '',
-        sizes: productData.sizes || [],
-        colors: productData.colors || [],
-        stock_quantity: productData.stock_quantity || 0,
-        images: productData.images || [],
-        is_active: productData.is_active ?? true,
-        is_featured: productData.is_featured ?? false,
-        sku: `SKU-${Date.now()}`,
+        id: `prod-${Date.now()}`,
+        slug: productData.name.toLowerCase().replace(/\s+/g, '-'),
+        ...productData
       };
-      setProducts(prev => [...prev, newProduct]);
+      setProducts([...products, newProduct]);
+      toast({
+        title: "Product created",
+        description: "The new product has been successfully created."
+      });
     }
-  };
-
-  const getCategoryName = (categoryId: string) => {
-    const category = mockCategories.find(cat => cat.id === categoryId);
-    return category?.name || 'Unknown';
+    setIsModalOpen(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Product Management</h1>
-          <p className="text-gray-600">Manage your product catalog</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Product Management</h1>
+          <p className="text-xl text-gray-600">Manage your product catalog</p>
         </div>
 
-        {/* Controls */}
+        {/* Filters and Search */}
         <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="flex flex-col md:flex-row gap-4 flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search products..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
-                
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {mockCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>Products ({filteredProducts.length})</CardTitle>
               <Button onClick={handleCreateProduct}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Product
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Products Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Products ({filteredProducts.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={product.images?.[0] || '/placeholder.svg'}
-                          alt={product.name}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                        <div>
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-sm text-gray-500">{product.sku}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getCategoryName(product.category_id)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">${product.price}</span>
-                        {product.original_price && (
-                          <span className="text-sm text-gray-500 line-through">
-                            ${product.original_price}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={product.stock_quantity > 10 ? "default" : "destructive"}>
-                        {product.stock_quantity} in stock
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={product.is_active ? "default" : "secondary"}>
-                        {product.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditProduct(product)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleToggleVisibility(product.id)}
-                        >
-                          {product.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDeleteProduct(product.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {mockCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Products Table */}
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {currentProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={product.images[0] || '/placeholder.svg'} 
+                            alt={product.name}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                          <div>
+                            <p className="font-medium">{product.name}</p>
+                            <p className="text-sm text-gray-500">{product.sku}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <span className="font-medium">${product.price}</span>
+                          {product.original_price && (
+                            <span className="text-sm text-gray-500 line-through ml-2">
+                              ${product.original_price}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className={product.stock_quantity < 10 ? 'text-red-600' : 'text-green-600'}>
+                          {product.stock_quantity}
+                        </span>
+                      </TableCell>
+                      <TableCell>{product.categories?.name}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Badge variant={product.is_active ? 'default' : 'secondary'}>
+                            {product.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                          {product.is_featured && (
+                            <Badge variant="outline">Featured</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditProduct(product)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteProduct(product.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-4">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? 'default' : 'outline'}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <ProductModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          product={editingProduct}
           onSave={handleSaveProduct}
+          product={editingProduct}
+          categories={mockCategories}
         />
       </div>
     </div>
